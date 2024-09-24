@@ -4,7 +4,7 @@
 [
   {
     "label": "run",
-    "command": "cargo run -p inu --bin inu io/input.luac",
+    "command": "cargo run -p inu --bin inu io/input.luac > io/output.lua",
     //"args": [],
     // Env overrides for the command, will be appended to the terminal's environment from the settings.
     "env": {},

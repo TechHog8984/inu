@@ -1,6 +1,9 @@
-use std::process::exit;
+use std::time::Instant;
 
-use crate::bytecode::{Bytecode, Constant, LuaInt, LuaNumber, LuaVersion, Proto};
+use crate::bytecode::{
+    build_bytecode, build_instruction, Bytecode, Constant, Instruction, LuaInstruction, LuaInt,
+    LuaNumber, LuaVersion, Proto,
+};
 
 pub struct Reader<'a> {
     pub bytes: &'a Vec<u8>,
@@ -9,6 +12,7 @@ pub struct Reader<'a> {
     position: usize,
     endianness: bool,
     size_int: u8,
+    max_int: LuaInt,
     size_sizet: u8,
     size_instruction: u8,
     size_luanumber: u8,
@@ -85,8 +89,7 @@ impl<'a> Reader<'a> {
         return if self.size_int == size_of::<i32>() as u8 {
             self.read_i32()
         } else {
-            eprintln!("Failed to read int: unhandled size {}", self.size_int);
-            exit(1);
+            panic!("Failed to read int: unhandled size {}", self.size_int);
         };
     }
     // return type should be the biggest of all possible types
@@ -94,8 +97,7 @@ impl<'a> Reader<'a> {
         return if self.size_sizet == size_of::<u64>() as u8 {
             self.read_u64()
         } else {
-            eprintln!("Failed to read sizet: unhandled size {}", self.size_sizet);
-            exit(1);
+            panic!("Failed to read sizet: unhandled size {}", self.size_sizet);
         };
     }
     // return type should be the biggest of all possible types
@@ -104,11 +106,10 @@ impl<'a> Reader<'a> {
         return if self.size_luanumber == size_of::<f64>() as u8 {
             self.read_f64()
         } else {
-            eprintln!(
+            panic!(
                 "Failed to read number: unhandled size {}",
                 self.size_luanumber
             );
-            exit(1);
         };
     }
 
@@ -132,19 +133,20 @@ impl<'a> Reader<'a> {
     }
 
     // return type should be the biggest of all possible types
-    fn read_instruction(&mut self) -> u32 {
+    fn read_instruction(&mut self) -> LuaInstruction {
         return if self.size_instruction == size_of::<u32>() as u8 {
             self.read_i32() as u32
         } else {
-            eprintln!(
+            panic!(
                 "Failed to read instruction: unhandled size {}",
                 self.size_instruction
             );
-            exit(1);
         };
     }
 
     pub fn read(&mut self) -> Bytecode {
+        let start_instant: Instant = Instant::now();
+
         assert_eq!(
             self.read_u8(),
             0o33,
@@ -163,11 +165,10 @@ impl<'a> Reader<'a> {
         let version: LuaVersion = match version_number {
             0x51 => LuaVersion::Lua51,
             _ => {
-                eprintln!(
+                panic!(
                     "Failed to read bytecode: unsupported version number ({})",
                     version_number
                 );
-                exit(1);
             }
         };
 
@@ -181,13 +182,21 @@ impl<'a> Reader<'a> {
 
         self.endianness = endianness;
         self.size_int = size_int;
+        self.max_int = if size_int == size_of::<i32>() as u8 {
+            i32::MAX
+        } else {
+            panic!(
+                "Failed to set max_int: unhandled int size {}",
+                self.size_int
+            );
+        };
         self.size_sizet = size_sizet;
         self.size_instruction = size_instruction;
         self.size_luanumber = size_luanumber;
 
-        let main_proto: Proto = self.read_proto();
+        let main_proto: Proto = self.read_proto(0, true);
 
-        let bytecode: Bytecode = Bytecode {
+        let bytecode: Bytecode = build_bytecode(
             version,
             format,
             endianness,
@@ -197,12 +206,13 @@ impl<'a> Reader<'a> {
             size_luanumber,
             luanumber_integral,
             main_proto,
-        };
+            start_instant.elapsed(),
+        );
 
         return bytecode;
     }
 
-    fn read_proto(&mut self) -> Proto {
+    fn read_proto(&mut self, id: LuaInt, is_main: bool) -> Proto {
         let source: Option<String> = self.read_string();
         let line_defined: LuaInt = self.read_int();
         let last_line_defined: LuaInt = self.read_int();
@@ -211,13 +221,16 @@ impl<'a> Reader<'a> {
         let is_vararg: bool = self.read_u8() == 1;
         let max_stack_size: u8 = self.read_u8();
 
-        let code: Vec<u32> = self.read_code();
+        let code: Vec<Instruction> = self.read_code();
         let constants: Vec<Constant> = self.read_constants();
         let protos: Vec<Proto> = self.read_protos();
         // eventually we might read instead of skip, depending on if someone requests such functionality
         self.skip_debug();
 
         let result: Proto = Proto {
+            is_main,
+            id,
+
             source,
             line_defined,
             last_line_defined,
@@ -233,12 +246,16 @@ impl<'a> Reader<'a> {
         return result;
     }
 
-    fn read_code(&mut self) -> Vec<u32> {
-        let size_code = self.read_int() as u32;
-        let mut result: Vec<u32> = Vec::with_capacity(size_code as usize);
+    fn read_code(&mut self) -> Vec<Instruction> {
+        let size_code: LuaInt = self.read_int();
+        let mut result: Vec<Instruction> = Vec::with_capacity(size_code as usize);
 
         for _ in 0..size_code {
-            result.push(self.read_instruction());
+            result.push(build_instruction(
+                self.read_instruction(),
+                self.size_int as LuaInt,
+                self.max_int,
+            ));
         }
 
         return result;
@@ -255,8 +272,7 @@ impl<'a> Reader<'a> {
                 3 => Constant::Number(self.read_number()),
                 4 => Constant::String(self.read_string().unwrap_or("".to_string())),
                 _ => {
-                    eprintln!("Failed to read constant: invalid type {}", constant_type);
-                    exit(1);
+                    panic!("Failed to read constant: invalid type {}", constant_type);
                 }
             });
         }
@@ -267,8 +283,8 @@ impl<'a> Reader<'a> {
         let size_proto: LuaInt = self.read_int();
         let mut result: Vec<Proto> = Vec::with_capacity(size_proto as usize);
 
-        for _ in 0..size_proto {
-            result.push(self.read_proto());
+        for id in 0..size_proto {
+            result.push(self.read_proto(id, false));
         }
 
         return result;
@@ -301,6 +317,7 @@ pub fn build_reader(bytes: &Vec<u8>) -> Reader {
         position: 0,
         endianness: false,
         size_int: 4,
+        max_int: LuaInt::MAX,
         size_sizet: 8,
         size_instruction: 4,
         size_luanumber: 8,
