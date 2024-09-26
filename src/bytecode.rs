@@ -204,8 +204,58 @@ pub enum OpCode {
     OpUnknown(u32),
 }
 
+macro_rules! GET_RAW_CONSTANT_AND_EXPECT_STRING {
+    ( $constants:expr, $index:expr, $instruction_name:expr ) => {
+        if let Constant::String(s) = $constants[$index].clone() {
+            s
+        } else {
+            panic!(
+                "Failed to format {} instruction: constant type was not String",
+                $instruction_name
+            );
+        }
+    };
+}
+macro_rules! FORMAT_CONSTANT_RK {
+    ( $constants:expr, $value:expr ) => {
+        if IS_RK!($value) {
+            $constants[INDEXK!($value) as usize].format()
+        } else {
+            format!("r_{}", $value)
+        }
+    };
+}
+macro_rules! FORMAT_BINARY {
+    ( $op:expr, $constants:expr, $a:expr, $b:expr, $c:expr ) => {
+        format!(
+            "r_{} = {} {} {}",
+            $a,
+            FORMAT_CONSTANT_RK!($constants, $b),
+            $op,
+            FORMAT_CONSTANT_RK!($constants, $c)
+        )
+    };
+}
+macro_rules! FORMAT_UNARY {
+    ( $op:expr, $a:expr, $b:expr ) => {
+        format!("r_{} = {}r_{}", $a, $op, $b)
+    };
+}
+
+macro_rules! FORMAT_CONDITION {
+    ( $yes:expr, $no:expr, $constants:expr, $a:expr, $b:expr, $c:expr, $pc:expr ) => {
+        format!(
+            "if {} {} {} then goto {}",
+            FORMAT_CONSTANT_RK!($constants, $b),
+            if $a == 1 { $no } else { $yes },
+            FORMAT_CONSTANT_RK!($constants, $c),
+            $pc + 2
+        )
+    };
+}
+
 impl OpCode {
-    fn describe(&self, constants: &Vec<Constant>) -> String {
+    fn describe(&self, constants: &Vec<Constant>, pc: usize) -> String {
         return if let OpCode::OpMove(OpMode::ABC(a, b, _c)) = self {
             format!("r_{} = r_{}", a, b)
         } else if let OpCode::OpLoadK(OpMode::ABX(a, bx)) = self {
@@ -225,33 +275,64 @@ impl OpCode {
             format!(
                 "r_{} = {}",
                 a,
-                if let Constant::String(s) = constants[*bx as usize].clone() {
-                    s
-                } else {
-                    panic!("Failed to format GETGLOBAL instruction: constant type was not String");
-                }
+                GET_RAW_CONSTANT_AND_EXPECT_STRING!(constants, *bx as usize, "GETGLOBAL")
             )
         } else if let OpCode::OpGetTable(OpMode::ABC(a, b, c)) = self {
-            format!(
-                "r_{} = r_{}[{}]",
-                a,
-                b,
-                if IS_RK!(*c) {
-                    constants[INDEXK!(*c) as usize].format()
-                } else {
-                    format!("r_{}", *c)
-                }
-            )
+            format!("r_{} = r_{}[{}]", a, b, FORMAT_CONSTANT_RK!(constants, *c))
         } else if let OpCode::OpSetGlobal(OpMode::ABX(a, bx)) = self {
             format!(
                 "{} = r_{}",
-                if let Constant::String(s) = constants[*bx as usize].clone() {
-                    s
-                } else {
-                    panic!("Failed to format SETGLOBAL instruction: constant type was not String");
-                },
+                GET_RAW_CONSTANT_AND_EXPECT_STRING!(constants, *bx as usize, "SETGLOBAL"),
                 a
             )
+        } else if let OpCode::OpSetUpval(OpMode::ABC(a, b, _c)) = self {
+            format!("upvalue_{} = r_{}", b, a)
+        } else if let OpCode::OpSetTable(OpMode::ABC(a, b, c)) = self {
+            format!(
+                "r_{}[{}] = {}",
+                a,
+                FORMAT_CONSTANT_RK!(constants, b),
+                FORMAT_CONSTANT_RK!(constants, c)
+            )
+        } else if let OpCode::OpNewTable(OpMode::ABC(a, b, c)) = self {
+            format!("r_{} = {{}} -- {} list & {} record", a, b, c)
+        } else if let OpCode::OpSelf(OpMode::ABC(a, b, c)) = self {
+            format!(
+                "r_{} = r_{}; r_{} = r_{}[{}]",
+                a + 1,
+                b,
+                a,
+                b,
+                FORMAT_CONSTANT_RK!(constants, c)
+            )
+        } else if let OpCode::OpAdd(OpMode::ABC(a, b, c)) = self {
+            FORMAT_BINARY!('+', constants, *a, *b, *c)
+        } else if let OpCode::OpSub(OpMode::ABC(a, b, c)) = self {
+            FORMAT_BINARY!('-', constants, *a, *b, *c)
+        } else if let OpCode::OpMul(OpMode::ABC(a, b, c)) = self {
+            FORMAT_BINARY!('*', constants, *a, *b, *c)
+        } else if let OpCode::OpDiv(OpMode::ABC(a, b, c)) = self {
+            FORMAT_BINARY!('/', constants, *a, *b, *c)
+        } else if let OpCode::OpMod(OpMode::ABC(a, b, c)) = self {
+            FORMAT_BINARY!('%', constants, *a, *b, *c)
+        } else if let OpCode::OpPow(OpMode::ABC(a, b, c)) = self {
+            FORMAT_BINARY!('^', constants, *a, *b, *c)
+        } else if let OpCode::OpUnm(OpMode::ABC(a, b, _c)) = self {
+            FORMAT_UNARY!('-', *a, *b)
+        } else if let OpCode::OpNot(OpMode::ABC(a, b, _c)) = self {
+            FORMAT_UNARY!("not ", *a, *b)
+        } else if let OpCode::OpLen(OpMode::ABC(a, b, _c)) = self {
+            FORMAT_UNARY!('#', *a, *b)
+        } else if let OpCode::OpConcat(OpMode::ABC(a, b, c)) = self {
+            format!("r_{} = r_{} .. ... .. r_{}", a, b, c)
+        } else if let OpCode::OpJmp(OpMode::ASBX(_a, sbx)) = self {
+            format!("goto {}", pc + *sbx as usize + 1)
+        } else if let OpCode::OpEq(OpMode::ABC(a, b, c)) = self {
+            FORMAT_CONDITION!("==", "~=", constants, *a, *b, *c, pc)
+        } else if let OpCode::OpLt(OpMode::ABC(a, b, c)) = self {
+            FORMAT_CONDITION!("<", ">=", constants, *a, *b, *c, pc)
+        } else if let OpCode::OpLe(OpMode::ABC(a, b, c)) = self {
+            FORMAT_CONDITION!("<=", ">", constants, *a, *b, *c, pc)
         } else {
             format!("TODO: DESCRIBE {:?}", self)
         };
@@ -285,6 +366,30 @@ pub fn build_instruction(
         6 => OpCode::OpGetTable(OpMode::ABC(a, b, c)),
 
         7 => OpCode::OpSetGlobal(OpMode::ABX(a, bx)),
+        8 => OpCode::OpSetUpval(OpMode::ABC(a, b, c)),
+        9 => OpCode::OpSetTable(OpMode::ABC(a, b, c)),
+
+        10 => OpCode::OpNewTable(OpMode::ABC(a, b, c)),
+
+        11 => OpCode::OpSelf(OpMode::ABC(a, b, c)),
+
+        12 => OpCode::OpAdd(OpMode::ABC(a, b, c)),
+        13 => OpCode::OpSub(OpMode::ABC(a, b, c)),
+        14 => OpCode::OpMul(OpMode::ABC(a, b, c)),
+        15 => OpCode::OpDiv(OpMode::ABC(a, b, c)),
+        16 => OpCode::OpMod(OpMode::ABC(a, b, c)),
+        17 => OpCode::OpPow(OpMode::ABC(a, b, c)),
+        18 => OpCode::OpUnm(OpMode::ABC(a, b, c)),
+        19 => OpCode::OpNot(OpMode::ABC(a, b, c)),
+        20 => OpCode::OpLen(OpMode::ABC(a, b, c)),
+
+        21 => OpCode::OpConcat(OpMode::ABC(a, b, c)),
+
+        22 => OpCode::OpJmp(OpMode::ASBX(0, asbx)),
+
+        23 => OpCode::OpEq(OpMode::ABC(a, b, c)),
+        24 => OpCode::OpLt(OpMode::ABC(a, b, c)),
+        25 => OpCode::OpLe(OpMode::ABC(a, b, c)),
 
         36 => OpCode::OpClosure(OpMode::ABX(a, bx)),
 
@@ -409,7 +514,7 @@ impl Bytecode {
                 "{}    {:?}    -- {}",
                 i,
                 inst.op,
-                inst.op.describe(&proto.constants)
+                inst.op.describe(&proto.constants, i)
             ));
         }
 

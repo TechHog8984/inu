@@ -253,7 +253,15 @@ impl<'a> Reader<'a> {
         for _ in 0..size_code {
             result.push(build_instruction(
                 self.read_instruction(),
-                self.size_int as LuaInt,
+                match self.size_int {
+                    4 => 32,
+                    _ => {
+                        panic!(
+                            "Failed to get bitsint: unhandled size_int {}",
+                            self.size_int
+                        )
+                    }
+                } as LuaInt,
                 self.max_int,
             ));
         }
