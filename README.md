@@ -8,3 +8,4 @@ inu is a WIP tool in Rust for working with Lua bytecode.
 ### TODO:
 - tests
   - have a file called test.luac and just check the output of inu (or the Bytecode struct)
+- explore integration with wasynth to easily port this to Luau
