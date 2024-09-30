@@ -184,7 +184,7 @@ pub enum OpCode {
     OpLe(OpMode),
 
     OpTest(OpMode),
-    OpTestset(OpMode),
+    OpTestSet(OpMode),
 
     OpCall(OpMode),
     OpTailCall(OpMode),
@@ -255,7 +255,7 @@ macro_rules! FORMAT_CONDITION {
 }
 
 impl OpCode {
-    fn describe(&self, constants: &Vec<Constant>, pc: usize) -> String {
+    fn describe(&self, constants: &Vec<Constant>, pc: isize) -> String {
         return if let OpCode::OpMove(OpMode::ABC(a, b, _c)) = self {
             format!("r_{} = r_{}", a, b)
         } else if let OpCode::OpLoadK(OpMode::ABX(a, bx)) = self {
@@ -326,13 +326,60 @@ impl OpCode {
         } else if let OpCode::OpConcat(OpMode::ABC(a, b, c)) = self {
             format!("r_{} = r_{} .. ... .. r_{}", a, b, c)
         } else if let OpCode::OpJmp(OpMode::ASBX(_a, sbx)) = self {
-            format!("goto {}", pc + *sbx as usize + 1)
+            format!("goto {}", pc + *sbx as isize + 1)
         } else if let OpCode::OpEq(OpMode::ABC(a, b, c)) = self {
             FORMAT_CONDITION!("==", "~=", constants, *a, *b, *c, pc)
         } else if let OpCode::OpLt(OpMode::ABC(a, b, c)) = self {
             FORMAT_CONDITION!("<", ">=", constants, *a, *b, *c, pc)
         } else if let OpCode::OpLe(OpMode::ABC(a, b, c)) = self {
             FORMAT_CONDITION!("<=", ">", constants, *a, *b, *c, pc)
+        } else if let OpCode::OpTest(OpMode::ABC(a, _b, c)) = self {
+            format!(
+                "if {}r_{} then goto {}",
+                if *c == 0 { "" } else { "not " },
+                a,
+                pc + 2
+            )
+        } else if let OpCode::OpTestSet(OpMode::ABC(a, b, c)) = self {
+            format!(
+                "if {}r_{} then goto {} else r_{} = r_{}",
+                if *c == 0 { "" } else { "not " },
+                b,
+                pc + 2,
+                a,
+                b
+            )
+        } else if let OpCode::OpCall(OpMode::ABC(a, b, c)) = self {
+            format!(
+                "{}r_{}({})",
+                if *c == 0 {
+                    String::from("top ... ??? = ")
+                } else if *c == 1 {
+                    String::new()
+                } else {
+                    format!("r_{} .. ... .. r_{} = ", a, *a + *c - 2)
+                },
+                a,
+                if *b == 0 {
+                    String::from("top ... ???")
+                } else if *b == 1 {
+                    String::new()
+                } else {
+                    format!("r_{} .. ... .. r_{}", *a + 1, *a + *b - 1)
+                }
+            )
+        } else if let OpCode::OpTailCall(OpMode::ABC(a, b, _c)) = self {
+            format!(
+                "return r_{}({})",
+                a,
+                if *b == 0 {
+                    String::from("top ... ???")
+                } else if *b == 1 {
+                    String::new()
+                } else {
+                    format!("r_{} .. ... .. r_{}", *a + 1, *a + *b - 1)
+                }
+            )
         } else {
             format!("TODO: DESCRIBE {:?}", self)
         };
@@ -390,6 +437,13 @@ pub fn build_instruction(
         23 => OpCode::OpEq(OpMode::ABC(a, b, c)),
         24 => OpCode::OpLt(OpMode::ABC(a, b, c)),
         25 => OpCode::OpLe(OpMode::ABC(a, b, c)),
+
+        26 => OpCode::OpTest(OpMode::ABC(a, b, c)),
+        27 => OpCode::OpTestSet(OpMode::ABC(a, b, c)),
+
+        28 => OpCode::OpCall(OpMode::ABC(a, b, c)),
+        29 => OpCode::OpTailCall(OpMode::ABC(a, b, c)),
+        30 => OpCode::OpReturn(OpMode::ABC(a, b, c)),
 
         36 => OpCode::OpClosure(OpMode::ABX(a, bx)),
 
@@ -514,7 +568,7 @@ impl Bytecode {
                 "{}    {:?}    -- {}",
                 i,
                 inst.op,
-                inst.op.describe(&proto.constants, i)
+                inst.op.describe(&proto.constants, i as isize)
             ));
         }
 
