@@ -1,4 +1,4 @@
--- disassembled by inu in 216 microseconds
+-- disassembled by inu in 506 microseconds
 
 0    OpGetGlobal(ABX(0, 0))    -- r_0 = math
 1    OpGetGlobal(ABX(1, 1))    -- r_1 = newproxy
@@ -52,18 +52,18 @@
 49    OpMove(ABC(48, 10, 0))    -- r_48 = r_10
 50    OpLoadK(ABX(49, 6))    -- r_49 = 1
 51    OpUnknown(32)    -- TODO: DESCRIBE OpUnknown(32)
-52    OpUnknown(31)    -- TODO: DESCRIBE OpUnknown(31)
+52    OpForLoop(ASBX(47, -1))    -- r_47 += r_49; if r_47 <?= r_48 then { goto 53; r_50 = r_47 }
 53    OpMove(ABC(47, 9, 0))    -- r_47 = r_9
 54    OpMove(ABC(48, 10, 0))    -- r_48 = r_10
 55    OpMove(ABC(49, 11, 0))    -- r_49 = r_11
 56    OpUnknown(32)    -- TODO: DESCRIBE OpUnknown(32)
-57    OpUnknown(31)    -- TODO: DESCRIBE OpUnknown(31)
+57    OpForLoop(ASBX(47, -1))    -- r_47 += r_49; if r_47 <?= r_48 then { goto 58; r_50 = r_47 }
 58    OpMove(ABC(47, 9, 0))    -- r_47 = r_9
 59    OpMove(ABC(48, 10, 0))    -- r_48 = r_10
 60    OpMove(ABC(49, 11, 0))    -- r_49 = r_11
 61    OpUnknown(32)    -- TODO: DESCRIBE OpUnknown(32)
 62    OpLoadNil(ABC(51, 51, 0))    -- r_51..r_51 = nil
-63    OpUnknown(31)    -- TODO: DESCRIBE OpUnknown(31)
+63    OpForLoop(ASBX(47, -2))    -- r_47 += r_49; if r_47 <?= r_48 then { goto 63; r_50 = r_47 }
 64    OpTest(ABC(7, 0, 0))    -- if r_7 then goto 66
 65    OpJmp(ASBX(0, 1))    -- goto 67
 66    OpJmp(ASBX(0, -3))    -- goto 64
@@ -199,14 +199,14 @@
 196    OpCall(ABC(80, 3, 4))    -- r_80 .. ... .. r_82 = r_80(r_81 .. ... .. r_82)
 local function proto_0()
     0    OpGetGlobal(ABX(0, 0))    -- r_0 = n
-    1    OpReturn(ABC(0, 2, 0))    -- return r_0 .. ... .. r_0
-    2    OpReturn(ABC(0, 1, 0))    -- return r_0 .. ... .. r_-1
+    1    OpReturn(ABC(0, 2, 0))    -- returnr_0 .. ... .. r_0
+    2    OpReturn(ABC(0, 1, 0))    -- return
 end
 197    OpClosure(ABX(83, 0))    -- TODO: DESCRIBE OpClosure(ABX(83, 0))
 local function proto_1()
     0    OpGetUpval(ABC(0, 0, 0))    -- r_0 = upvalue_0
-    1    OpReturn(ABC(0, 2, 0))    -- return r_0 .. ... .. r_0
-    2    OpReturn(ABC(0, 1, 0))    -- return r_0 .. ... .. r_-1
+    1    OpReturn(ABC(0, 2, 0))    -- returnr_0 .. ... .. r_0
+    2    OpReturn(ABC(0, 1, 0))    -- return
 end
 198    OpClosure(ABX(84, 1))    -- TODO: DESCRIBE OpClosure(ABX(84, 1))
 199    OpMove(ABC(0, 8, 0))    -- r_0 = r_8
@@ -214,16 +214,16 @@ local function proto_2()
     0    OpLoadK(ABX(0, 0))    -- r_0 = "Goodbye World"
     1    OpSetUpval(ABC(0, 0, 0))    -- upvalue_0 = r_0
     2    OpGetUpval(ABC(0, 0, 0))    -- r_0 = upvalue_0
-    3    OpReturn(ABC(0, 2, 0))    -- return r_0 .. ... .. r_0
-    4    OpReturn(ABC(0, 1, 0))    -- return r_0 .. ... .. r_-1
+    3    OpReturn(ABC(0, 2, 0))    -- returnr_0 .. ... .. r_0
+    4    OpReturn(ABC(0, 1, 0))    -- return
 end
 200    OpClosure(ABX(85, 2))    -- TODO: DESCRIBE OpClosure(ABX(85, 2))
 201    OpMove(ABC(0, 8, 0))    -- r_0 = r_8
 local function proto_3()
     0    OpGetUpval(ABC(0, 0, 0))    -- r_0 = upvalue_0
     1    OpGetUpval(ABC(1, 1, 0))    -- r_1 = upvalue_1
-    2    OpReturn(ABC(0, 3, 0))    -- return r_0 .. ... .. r_1
-    3    OpReturn(ABC(0, 1, 0))    -- return r_0 .. ... .. r_-1
+    2    OpReturn(ABC(0, 3, 0))    -- returnr_0 .. ... .. r_1
+    3    OpReturn(ABC(0, 1, 0))    -- return
 end
 202    OpClosure(ABX(86, 3))    -- TODO: DESCRIBE OpClosure(ABX(86, 3))
 203    OpMove(ABC(0, 9, 0))    -- r_0 = r_9
@@ -232,8 +232,8 @@ local function proto_4()
     0    OpGetUpval(ABC(0, 0, 0))    -- r_0 = upvalue_0
     1    OpGetUpval(ABC(1, 1, 0))    -- r_1 = upvalue_1
     2    OpGetUpval(ABC(2, 2, 0))    -- r_2 = upvalue_2
-    3    OpReturn(ABC(0, 4, 0))    -- return r_0 .. ... .. r_2
-    4    OpReturn(ABC(0, 1, 0))    -- return r_0 .. ... .. r_-1
+    3    OpReturn(ABC(0, 4, 0))    -- returnr_0 .. ... .. r_2
+    4    OpReturn(ABC(0, 1, 0))    -- return
 end
 205    OpClosure(ABX(87, 4))    -- TODO: DESCRIBE OpClosure(ABX(87, 4))
 206    OpMove(ABC(0, 9, 0))    -- r_0 = r_9
@@ -259,8 +259,8 @@ local function proto_5()
     16    OpGetUpval(ABC(16, 0, 0))    -- r_16 = upvalue_0
     17    OpGetUpval(ABC(17, 0, 0))    -- r_17 = upvalue_0
     18    OpGetUpval(ABC(18, 0, 0))    -- r_18 = upvalue_0
-    19    OpReturn(ABC(0, 20, 0))    -- return r_0 .. ... .. r_18
-    20    OpReturn(ABC(0, 1, 0))    -- return r_0 .. ... .. r_-1
+    19    OpReturn(ABC(0, 20, 0))    -- returnr_0 .. ... .. r_18
+    20    OpReturn(ABC(0, 1, 0))    -- return
 end
 209    OpClosure(ABX(88, 5))    -- TODO: DESCRIBE OpClosure(ABX(88, 5))
 210    OpMove(ABC(0, 9, 0))    -- r_0 = r_9
@@ -268,8 +268,8 @@ local function proto_6()
     0    OpGetUpval(ABC(1, 0, 0))    -- r_1 = upvalue_0
     1    OpUnknown(37)    -- TODO: DESCRIBE OpUnknown(37)
     2    OpTailCall(ABC(1, 0, 0))    -- return r_1(top ... ???)
-    3    OpReturn(ABC(1, 0, 0))    -- return r_1 .. ... .. r_-1
-    4    OpReturn(ABC(0, 1, 0))    -- return r_0 .. ... .. r_-1
+    3    OpReturn(ABC(1, 0, 0))    -- return top ... ???
+    4    OpReturn(ABC(0, 1, 0))    -- return
 end
 211    OpClosure(ABX(89, 6))    -- TODO: DESCRIBE OpClosure(ABX(89, 6))
 212    OpMove(ABC(0, 86, 0))    -- r_0 = r_86
@@ -277,8 +277,8 @@ local function proto_7()
     0    OpGetUpval(ABC(0, 0, 0))    -- r_0 = upvalue_0
     1    OpGetUpval(ABC(1, 1, 0))    -- r_1 = upvalue_1
     2    OpTailCall(ABC(0, 2, 0))    -- return r_0(r_1 .. ... .. r_1)
-    3    OpReturn(ABC(0, 0, 0))    -- return r_0 .. ... .. r_-2
-    4    OpReturn(ABC(0, 1, 0))    -- return r_0 .. ... .. r_-1
+    3    OpReturn(ABC(0, 0, 0))    -- return top ... ???
+    4    OpReturn(ABC(0, 1, 0))    -- return
 end
 213    OpClosure(ABX(90, 7))    -- TODO: DESCRIBE OpClosure(ABX(90, 7))
 214    OpMove(ABC(0, 86, 0))    -- r_0 = r_86
@@ -288,8 +288,8 @@ local function proto_8()
     1    OpGetUpval(ABC(1, 1, 0))    -- r_1 = upvalue_1
     2    OpGetUpval(ABC(2, 1, 0))    -- r_2 = upvalue_1
     3    OpTailCall(ABC(0, 3, 0))    -- return r_0(r_1 .. ... .. r_2)
-    4    OpReturn(ABC(0, 0, 0))    -- return r_0 .. ... .. r_-2
-    5    OpReturn(ABC(0, 1, 0))    -- return r_0 .. ... .. r_-1
+    4    OpReturn(ABC(0, 0, 0))    -- return top ... ???
+    5    OpReturn(ABC(0, 1, 0))    -- return
 end
 216    OpClosure(ABX(91, 8))    -- TODO: DESCRIBE OpClosure(ABX(91, 8))
 217    OpMove(ABC(0, 86, 0))    -- r_0 = r_86
@@ -843,7 +843,7 @@ end
 765    OpGetTable(ABC(124, 121, 262))    -- r_124 = r_121[1]
 766    OpNewTable(ABC(125, 0, 1))    -- r_125 = {} -- 0 list & 1 record
 local function proto_9()
-    0    OpReturn(ABC(0, 1, 0))    -- return r_0 .. ... .. r_-1
+    0    OpReturn(ABC(0, 1, 0))    -- return
 end
 767    OpClosure(ABX(126, 9))    -- TODO: DESCRIBE OpClosure(ABX(126, 9))
 768    OpSetTable(ABC(125, 268, 126))    -- r_125["SELFCALL"] = r_126
@@ -853,5 +853,5 @@ end
 772    OpGetGlobal(ABX(125, 13))    -- r_125 = print
 773    OpLoadK(ABX(126, 14))    -- r_126 = "PASSED"
 774    OpCall(ABC(125, 2, 1))    -- r_125(r_126 .. ... .. r_126)
-775    OpReturn(ABC(0, 1, 0))    -- return r_0 .. ... .. r_-1
-776    OpReturn(ABC(0, 1, 0))    -- return r_0 .. ... .. r_-1
+775    OpReturn(ABC(0, 1, 0))    -- return
+776    OpReturn(ABC(0, 1, 0))    -- return
