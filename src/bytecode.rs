@@ -628,7 +628,35 @@ impl Bytecode {
         }
 
         let mut was_proto_printed_map: Vec<bool> = vec![false; proto.code.len()];
-        for i in 0..proto.code.len() {
+
+        let code_len: usize = proto.code.len();
+        let mut code_op_strings: Vec<String> = Vec::with_capacity(code_len);
+        let mut code_op_describes: Vec<String> = Vec::with_capacity(code_len);
+
+        for i in 0..code_len {
+            let inst: &Instruction = &proto.code[i];
+
+            code_op_strings.push(format!("{:?}", inst.op));
+            code_op_describes.push(inst.op.describe(&proto.constants, i as isize));
+        }
+
+        let max_index_width = if code_len == 0 {
+            1
+        } else {
+            (code_len as f64).log(10.0).floor() as usize + 1
+        } + 2;
+        let max_op_strings_width = code_op_strings
+            .iter()
+            .map(|string| string.len())
+            .max()
+            .unwrap_or(0);
+        let max_op_describes_width = code_op_describes
+            .iter()
+            .map(|string| string.len())
+            .max()
+            .unwrap_or(0);
+
+        for i in 0..code_len {
             let inst: &Instruction = &proto.code[i];
             if let OpCode::OpClosure(OpMode::ABX(_, bx)) = inst.op.clone() {
                 let index: usize = bx as usize;
@@ -637,13 +665,15 @@ impl Bytecode {
                     self.print_proto(proto.protos[index].clone());
                 }
             }
-            // TODO: proper formatting (certain # of spaces)
             self.print_text(format!(
-                "{}    {:?}    -- {}",
+                "{:<width_index$}{:<width_strings$}  --  {:<width_describes$}",
                 i,
-                inst.op,
-                inst.op.describe(&proto.constants, i as isize)
-            ));
+                code_op_strings.get(i).unwrap(),
+                code_op_describes.get(i).unwrap(),
+                width_index = max_index_width,
+                width_strings = max_op_strings_width,
+                width_describes = max_op_describes_width
+            ))
         }
 
         for i in 0..proto.protos.len() {
