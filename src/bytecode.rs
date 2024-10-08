@@ -324,7 +324,7 @@ impl OpCode {
         } else if let OpCode::OpLen(OpMode::ABC(a, b, _c)) = self {
             FORMAT_UNARY!('#', *a, *b)
         } else if let OpCode::OpConcat(OpMode::ABC(a, b, c)) = self {
-            format!("r_{} = r_{} .. ... .. r_{}", a, b, c)
+            format!("r_{} = r_{} ... r_{}", a, b, c)
         } else if let OpCode::OpJmp(OpMode::ASBX(_a, sbx)) = self {
             format!("goto {}", pc + *sbx as isize + 1)
         } else if let OpCode::OpEq(OpMode::ABC(a, b, c)) = self {
@@ -357,7 +357,7 @@ impl OpCode {
                 } else if *c == 1 {
                     String::new()
                 } else {
-                    format!("r_{} .. ... .. r_{} = ", a, *a + *c - 2)
+                    format!("r_{} ... r_{} = ", a, *a + *c - 2)
                 },
                 a,
                 if *b == 0 {
@@ -365,7 +365,7 @@ impl OpCode {
                 } else if *b == 1 {
                     String::new()
                 } else {
-                    format!("r_{} .. ... .. r_{}", *a + 1, *a + *b - 1)
+                    format!("r_{} ... r_{}", *a + 1, *a + *b - 1)
                 }
             )
         } else if let OpCode::OpTailCall(OpMode::ABC(a, b, _c)) = self {
@@ -377,7 +377,73 @@ impl OpCode {
                 } else if *b == 1 {
                     String::new()
                 } else {
-                    format!("r_{} .. ... .. r_{}", *a + 1, *a + *b - 1)
+                    format!("r_{} ... r_{}", *a + 1, *a + *b - 1)
+                }
+            )
+        } else if let OpCode::OpReturn(OpMode::ABC(a, b, _c)) = self {
+            format!(
+                "return{}",
+                if *b == 0 {
+                    String::from(" top ... ???")
+                } else if *b == 1 {
+                    String::new()
+                } else {
+                    format!(" r_{} ... r_{}", a, *a + *b - 2)
+                }
+            )
+        } else if let OpCode::OpForLoop(OpMode::ASBX(a, sbx)) = self {
+            format!(
+                "r_{} += r_{}; if r_{} <?= r_{} then {{ goto {}; r_{} = r_{} }}",
+                a,
+                *a + 2,
+                a,
+                *a + 1,
+                pc + *sbx as isize + 2,
+                *a + 3,
+                a
+            )
+        } else if let OpCode::OpForPrep(OpMode::ASBX(a, sbx)) = self {
+            format!("r_{} -= r_{}; goto {}", a, *a + 2, pc + *sbx as isize + 2)
+        } else if let OpCode::OpTForLoop(OpMode::ABC(a, _b, c)) = self {
+            format!(
+                "r_{} ... r_{} = r_{}(r_{}, r_{}); if r_{} ~= nil {{r_{} = r_{}}} else goto {}",
+                *a + 3,
+                *a + 2 + *c,
+                *a,
+                *a + 1,
+                *a + 2,
+                *a + 3,
+                *a + 2,
+                *a + 3,
+                pc + 2
+            )
+        } else if let OpCode::OpSetList(OpMode::ABC(a, b, c)) = self {
+            let offset = (*c - 1) * 50;
+            format!(
+                "r_{}[{} ... {}] = r_{} ... r_{}",
+                a,
+                offset + 1,
+                offset + *b,
+                *a + 1,
+                *a + *b
+            )
+        } else if let OpCode::OpClose(OpMode::ABX(a, _bx)) = self {
+            format!("close all variables in the stack up to r_{}", a)
+        } else if let OpCode::OpClosure(OpMode::ABX(a, bx)) = self {
+            format!(
+                "r_{} = proto_{} -- [num upvalues] proceeding getupval or move instructions are upvalues",
+                a, bx,
+            )
+        } else if let OpCode::OpVararg(OpMode::ABC(a, b, _c)) = self {
+            format!(
+                "r_{}{} = vararg",
+                a,
+                if *b == 0 {
+                    String::from(", top ... ???")
+                } else if *b == 1 {
+                    String::new()
+                } else {
+                    format!(", r_{} ... r_{}", a, *a + *b - 2)
                 }
             )
         } else {
@@ -401,7 +467,7 @@ pub fn build_instruction(
     let b: LuaInt = GET_ARGB!(raw);
     let c: LuaInt = GET_ARGC!(raw);
     let bx: LuaInt = GET_ARGBX!(raw);
-    let asbx: LuaInt = GET_ARGASBX!(raw, num_bits_int, max_int);
+    let sbx: LuaInt = GET_ARGASBX!(raw, num_bits_int, max_int);
     let op: OpCode = match GET_OPCODE!(raw) {
         0 => OpCode::OpMove(OpMode::ABC(a, b, c)),
         1 => OpCode::OpLoadK(OpMode::ABX(a, bx)),
@@ -432,7 +498,7 @@ pub fn build_instruction(
 
         21 => OpCode::OpConcat(OpMode::ABC(a, b, c)),
 
-        22 => OpCode::OpJmp(OpMode::ASBX(0, asbx)),
+        22 => OpCode::OpJmp(OpMode::ASBX(0, sbx)),
 
         23 => OpCode::OpEq(OpMode::ABC(a, b, c)),
         24 => OpCode::OpLt(OpMode::ABC(a, b, c)),
@@ -445,11 +511,19 @@ pub fn build_instruction(
         29 => OpCode::OpTailCall(OpMode::ABC(a, b, c)),
         30 => OpCode::OpReturn(OpMode::ABC(a, b, c)),
 
+        31 => OpCode::OpForLoop(OpMode::ASBX(a, sbx)),
+        32 => OpCode::OpForPrep(OpMode::ASBX(a, sbx)),
+
+        33 => OpCode::OpTForLoop(OpMode::ABC(a, b, c)),
+        34 => OpCode::OpSetList(OpMode::ABC(a, b, c)),
+
+        35 => OpCode::OpClose(OpMode::ABX(a, bx)),
         36 => OpCode::OpClosure(OpMode::ABX(a, bx)),
 
+        37 => OpCode::OpVararg(OpMode::ABC(a, b, c)),
+
         op => {
-            // panic!("Failed to get opcode: {}", op);
-            OpCode::OpUnknown(op)
+            panic!("Failed to get opcode: {}", op);
         }
     };
     Instruction { /* raw, */ op }
