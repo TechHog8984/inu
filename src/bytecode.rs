@@ -254,6 +254,15 @@ macro_rules! FORMAT_CONDITION {
     };
 }
 
+macro_rules! SIMPLE_REG_LIST {
+    ( $from:expr, $to:expr ) => {
+        match $from == $to {
+            true => format!("r_{}", $from),
+            false => format!("r_{} ... r_{}", $from, $to),
+        }
+    };
+}
+
 impl OpCode {
     fn describe(&self, constants: &Vec<Constant>, pc: isize) -> String {
         return if let OpCode::OpMove(OpMode::ABC(a, b, _c)) = self {
@@ -268,7 +277,7 @@ impl OpCode {
                 if *c == 1 { "; pc++" } else { "" }
             )
         } else if let OpCode::OpLoadNil(OpMode::ABC(a, b, _c)) = self {
-            format!("r_{}..r_{} = nil", a, b)
+            format!("{} = nil", SIMPLE_REG_LIST!(*a, *b))
         } else if let OpCode::OpGetUpval(OpMode::ABC(a, b, _c)) = self {
             format!("r_{} = upvalue_{}", a, b)
         } else if let OpCode::OpGetGlobal(OpMode::ABX(a, bx)) = self {
@@ -324,7 +333,7 @@ impl OpCode {
         } else if let OpCode::OpLen(OpMode::ABC(a, b, _c)) = self {
             FORMAT_UNARY!('#', *a, *b)
         } else if let OpCode::OpConcat(OpMode::ABC(a, b, c)) = self {
-            format!("r_{} = r_{} ... r_{}", a, b, c)
+            format!("r_{} = r_{} .. ... .. r_{}", a, b, c)
         } else if let OpCode::OpJmp(OpMode::ASBX(_a, sbx)) = self {
             format!("goto {}", pc + *sbx as isize + 1)
         } else if let OpCode::OpEq(OpMode::ABC(a, b, c)) = self {
@@ -357,7 +366,7 @@ impl OpCode {
                 } else if *c == 1 {
                     String::new()
                 } else {
-                    format!("r_{} ... r_{} = ", a, *a + *c - 2)
+                    format!("{} = ", SIMPLE_REG_LIST!(*a, *a + *c - 2))
                 },
                 a,
                 if *b == 0 {
@@ -365,7 +374,7 @@ impl OpCode {
                 } else if *b == 1 {
                     String::new()
                 } else {
-                    format!("r_{} ... r_{}", *a + 1, *a + *b - 1)
+                    SIMPLE_REG_LIST!(*a + 1, *a + *b - 1)
                 }
             )
         } else if let OpCode::OpTailCall(OpMode::ABC(a, b, _c)) = self {
@@ -377,7 +386,7 @@ impl OpCode {
                 } else if *b == 1 {
                     String::new()
                 } else {
-                    format!("r_{} ... r_{}", *a + 1, *a + *b - 1)
+                    SIMPLE_REG_LIST!(*a + 1, *a + *b - 1)
                 }
             )
         } else if let OpCode::OpReturn(OpMode::ABC(a, b, _c)) = self {
@@ -388,7 +397,7 @@ impl OpCode {
                 } else if *b == 1 {
                     String::new()
                 } else {
-                    format!(" r_{} ... r_{}", a, *a + *b - 2)
+                    format!(" {}", SIMPLE_REG_LIST!(*a, *a + *b - 2))
                 }
             )
         } else if let OpCode::OpForLoop(OpMode::ASBX(a, sbx)) = self {
@@ -406,9 +415,8 @@ impl OpCode {
             format!("r_{} -= r_{}; goto {}", a, *a + 2, pc + *sbx as isize + 2)
         } else if let OpCode::OpTForLoop(OpMode::ABC(a, _b, c)) = self {
             format!(
-                "r_{} ... r_{} = r_{}(r_{}, r_{}); if r_{} ~= nil {{r_{} = r_{}}} else goto {}",
-                *a + 3,
-                *a + 2 + *c,
+                "{} = r_{}(r_{}, r_{}); if r_{} ~= nil {{r_{} = r_{}}} else goto {}",
+                SIMPLE_REG_LIST!(*a + 3, *a + 2 + *c),
                 *a,
                 *a + 1,
                 *a + 2,
@@ -443,7 +451,7 @@ impl OpCode {
                 } else if *b == 1 {
                     String::new()
                 } else {
-                    format!(", r_{} ... r_{}", a, *a + *b - 2)
+                    format!(", {}", SIMPLE_REG_LIST!(*a, *a + *b - 2))
                 }
             )
         } else {
