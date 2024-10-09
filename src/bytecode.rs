@@ -1,5 +1,7 @@
 use std::{collections::HashMap, time::Duration};
 
+use crate::util::util::format_time_taken;
+
 #[derive(Debug)]
 pub enum LuaVersion {
     Lua51,
@@ -606,21 +608,10 @@ pub fn build_bytecode(
 impl Bytecode {
     pub fn print_disassembly(&mut self) {
         let time_taken = self.time_taken;
-        println!("-- disassembled by inu in {}", {
-            let nanoseconds: u128 = time_taken.as_nanos();
-            let seconds: u128 = nanoseconds / 1e9 as u128;
-            if seconds == 0 {
-                let milliseconds: u128 = nanoseconds / 1e6 as u128;
-                if milliseconds == 0 {
-                    format!("{} microseconds", time_taken.as_micros())
-                } else {
-                    format!("{} milliseconds", milliseconds)
-                }
-            } else {
-                format!("{} seconds", seconds)
-            }
-        });
-        println!();
+        println!(
+            "-- disassembled by inu in {}\n",
+            format_time_taken!(time_taken)
+        );
 
         self.print_proto(self.main_proto.clone());
     }
