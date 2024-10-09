@@ -276,7 +276,11 @@ impl OpCode {
                 "r_{} = {}{}",
                 a,
                 *b == 1,
-                if *c == 1 { "; pc++" } else { "" }
+                if *c == 1 {
+                    format!("; goto {}", pc + 2)
+                } else {
+                    "".to_string()
+                }
             )
         } else if let OpCode::OpLoadNil(OpMode::ABC(a, b, _c)) = self {
             format!("{} = nil", SIMPLE_REG_LIST!(*a, *b))
