@@ -676,8 +676,8 @@ impl Bytecode {
             self.print_text(format!(
                 "{:<width_index$}{:<width_strings$}  --  {:<width_describes$}",
                 i,
-                code_op_strings.get(i).unwrap(),
-                code_op_describes.get(i).unwrap(),
+                code_op_strings[i],
+                code_op_describes[i],
                 width_index = max_index_width,
                 width_strings = max_op_strings_width,
                 width_describes = max_op_describes_width
