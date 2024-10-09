@@ -30,7 +30,7 @@ fn main() {
     println!("main_proto: {:?}", bytecode.main_proto);
     */
 
-    bytecode.print();
+    bytecode.print_disassembly();
 }
 fn display_help() {
     println!("inu - A disassembler for lua\n");

@@ -604,7 +604,7 @@ pub fn build_bytecode(
 }
 
 impl Bytecode {
-    pub fn print(&mut self) {
+    pub fn print_disassembly(&mut self) {
         let time_taken = self.time_taken;
         println!("-- disassembled by inu in {}", {
             let nanoseconds: u128 = time_taken.as_nanos();
