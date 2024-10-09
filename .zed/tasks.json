@@ -39,5 +39,15 @@
     //         }
     //     }
     "shell": "system"
+  },
+  {
+    "label": "run decompile",
+    "command": "cargo run -p inu --bin inu -- io/input.luac -dec io/input.luac > io/decomp.lua",
+    "env": {},
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "shell": "system"
   }
 ]
