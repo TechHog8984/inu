@@ -20,7 +20,7 @@ pub enum Constant {
 }
 
 impl Constant {
-    fn format(&self) -> String {
+    pub fn format(&self) -> String {
         match self {
             Constant::Nil => "nil".to_string(),
             Constant::Boolean(bool) => bool.to_string(),
@@ -484,7 +484,7 @@ impl OpCode {
 #[derive(Debug, Clone)]
 pub struct Instruction {
     // raw: LuaInstruction,
-    op: OpCode,
+    pub op: OpCode,
 }
 
 pub fn build_instruction(
