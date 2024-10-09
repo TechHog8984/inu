@@ -266,7 +266,7 @@ macro_rules! SIMPLE_REG_LIST {
 }
 
 impl OpCode {
-    fn describe(&self, constants: &Vec<Constant>, pc: isize) -> String {
+    fn describe(&self, constants: &Vec<Constant>, protos: &Vec<Proto>, pc: isize) -> String {
         return if let OpCode::OpMove(OpMode::ABC(a, b, _c)) = self {
             format!("r_{} = r_{}", a, b)
         } else if let OpCode::OpLoadK(OpMode::ABX(a, bx)) = self {
@@ -440,9 +440,28 @@ impl OpCode {
         } else if let OpCode::OpClose(OpMode::ABX(a, _bx)) = self {
             format!("close all variables in the stack up to r_{}", a)
         } else if let OpCode::OpClosure(OpMode::ABX(a, bx)) = self {
+            let upvalue_count: u8 = protos[*bx as usize].upvalue_count;
+            let multiple: bool = upvalue_count > 1;
             format!(
-                "r_{} = proto_{} -- [num upvalues] proceeding getupval or move instructions are upvalues",
-                a, bx,
+                "r_{} = proto_{}{}",
+                a,
+                bx,
+                if upvalue_count > 0 {
+                    format!(
+                        " -- the {} proceeding getupval or move instruction{} upvalue{}",
+                        upvalue_count,
+                        match multiple {
+                            true => "s are",
+                            false => " is an",
+                        },
+                        match multiple {
+                            true => "s",
+                            false => "",
+                        }
+                    )
+                } else {
+                    String::new()
+                }
             )
         } else if let OpCode::OpVararg(OpMode::ABC(a, b, _c)) = self {
             format!(
@@ -547,7 +566,7 @@ pub struct Proto {
     pub source: Option<String>,
     pub line_defined: LuaInt,
     pub last_line_defined: LuaInt,
-    pub upvalues_count: u8,
+    pub upvalue_count: u8,
     pub param_count: u8,
     pub is_vararg: bool,
     pub max_stack_size: u8,
@@ -636,7 +655,10 @@ impl Bytecode {
             let inst: &Instruction = &proto.code[i];
 
             code_op_strings.push(format!("{:?}", inst.op));
-            code_op_describes.push(inst.op.describe(&proto.constants, i as isize));
+            code_op_describes.push(
+                inst.op
+                    .describe(&proto.constants, &proto.protos, i as isize),
+            );
         }
 
         let max_index_width = if code_len == 0 {

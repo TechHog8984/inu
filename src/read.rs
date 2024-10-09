@@ -234,7 +234,7 @@ impl<'a> Reader<'a> {
             source,
             line_defined,
             last_line_defined,
-            upvalues_count,
+            upvalue_count: upvalues_count,
             param_count,
             is_vararg,
             max_stack_size,
