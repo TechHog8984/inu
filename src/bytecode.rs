@@ -41,6 +41,8 @@ impl Constant {
                 map.insert('\\', '\\');
                 map.insert('\'', '\'');
                 map.insert('"', '"');
+                map.insert('\0', '0');
+                // map.insert('\1', '1');
 
                 for c in s.chars() {
                     if let Some(replacement) = map.get(&c) {
