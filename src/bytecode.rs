@@ -8,6 +8,7 @@ pub enum LuaVersion {
 }
 
 pub type LuaInt = i32; // make sure this type's size matches size_luaint (or is bigger than it)
+pub type LuaUint = u32;
 pub type LuaNumber = f64; // make sure this type's size matches size_luanumber (or is bigger than it)
 pub type LuaInstruction = u32; // make sure this type's size matches size_instruction (or is bigger than it)
 
