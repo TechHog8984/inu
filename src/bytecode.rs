@@ -311,7 +311,7 @@ impl OpCode {
                 FORMAT_CONSTANT_RK!(constants, c)
             )
         } else if let OpCode::OpNewTable(OpMode::ABC(a, b, c)) = self {
-            format!("r_{} = {{}} -- {} list & {} record", a, b, c)
+            format!("r_{} = {{}} -- {} list, {} record", a, b, c)
         } else if let OpCode::OpSelf(OpMode::ABC(a, b, c)) = self {
             format!(
                 "r_{} = r_{}; r_{} = r_{}[{}]",
