@@ -500,7 +500,6 @@ impl Instruction {
             if *c != 0 {
                 return false;
             }
-            println!("handling aux");
             self.op = OpCode::OpSetList(OpMode::ABC(
                 *a,
                 *b,
