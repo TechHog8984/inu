@@ -494,6 +494,24 @@ pub struct Instruction {
     pub op: OpCode,
 }
 
+impl Instruction {
+    pub fn handle_aux(&mut self, aux: Option<&LuaInstruction>) -> bool {
+        if let OpCode::OpSetList(OpMode::ABC(a, b, c)) = &self.op {
+            if *c != 0 {
+                return false;
+            }
+            println!("handling aux");
+            self.op = OpCode::OpSetList(OpMode::ABC(
+                *a,
+                *b,
+                *aux.expect("failed to get aux for SetList with C of 0") as i32,
+            ));
+            return true;
+        }
+        return false;
+    }
+}
+
 pub fn build_instruction(
     raw: LuaInstruction,
     num_bits_int: LuaInt,

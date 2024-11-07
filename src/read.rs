@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use crate::bytecode::{
     build_bytecode, build_instruction, Bytecode, Constant, Instruction, LuaInstruction, LuaInt,
-    LuaNumber, LuaVersion, Proto,
+    LuaNumber, LuaUint, LuaVersion, Proto,
 };
 
 pub struct Reader<'a> {
@@ -247,12 +247,18 @@ impl<'a> Reader<'a> {
     }
 
     fn read_code(&mut self) -> Vec<Instruction> {
-        let size_code: LuaInt = self.read_int();
+        let size_code: LuaUint = self.read_int() as LuaUint;
         let mut result: Vec<Instruction> = Vec::with_capacity(size_code as usize);
 
+        let mut raw_instructions: Vec<LuaInstruction> = Vec::with_capacity(size_code as usize);
         for _ in 0..size_code {
-            result.push(build_instruction(
-                self.read_instruction(),
+            raw_instructions.push(self.read_instruction());
+        }
+
+        let mut i: LuaUint = 0;
+        while i < size_code {
+            let mut inst = build_instruction(
+                raw_instructions[i as usize],
                 match self.size_int {
                     4 => 32,
                     _ => {
@@ -263,7 +269,13 @@ impl<'a> Reader<'a> {
                     }
                 } as LuaInt,
                 self.max_int,
-            ));
+            );
+            if inst.handle_aux(raw_instructions.get(i as usize + 1)) {
+                i += 1;
+            }
+
+            result.push(inst);
+            i += 1;
         }
 
         return result;
