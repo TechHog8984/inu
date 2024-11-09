@@ -472,14 +472,13 @@ impl OpCode {
             )
         } else if let OpCode::OpVararg(OpMode::ABC(a, b, _c)) = self {
             format!(
-                "r_{}{} = vararg",
-                a,
+                "{} = vararg",
                 if *b == 0 {
-                    String::from(", top ... ???")
+                    format!("r_{}, top ... ???", a)
                 } else if *b == 1 {
-                    String::new()
+                    format!("r_{}", a)
                 } else {
-                    format!(", {}", SIMPLE_REG_LIST!(*a, *a + *b - 2))
+                    format!("{}", SIMPLE_REG_LIST!(*a, *a + *b - 2))
                 }
             )
         } else {
