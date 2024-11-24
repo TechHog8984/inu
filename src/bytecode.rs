@@ -664,7 +664,20 @@ impl Bytecode {
 
     fn print_proto(&mut self, proto: Proto) {
         if !proto.is_main {
-            self.print_text(format!("local function proto_{}()", proto.id));
+            self.print_text(format!("local function proto_{}({})", proto.id, {
+                let count = proto.param_count;
+                let vararg = proto.is_vararg;
+                let mut arg_str: String = String::new();
+
+                for i in 0..count {
+                    arg_str.push_str(format!("arg_{}, ", i).as_str());
+                }
+                if vararg {
+                    arg_str += "...";
+                }
+
+                arg_str
+            }));
             self.indent += 1;
         }
 

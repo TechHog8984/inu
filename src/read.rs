@@ -218,7 +218,7 @@ impl<'a> Reader<'a> {
         let last_line_defined: LuaInt = self.read_int();
         let upvalues_count: u8 = self.read_u8();
         let param_count: u8 = self.read_u8();
-        let is_vararg: bool = self.read_u8() == 1;
+        let is_vararg: bool = self.read_u8() != 0;
         let max_stack_size: u8 = self.read_u8();
 
         let code: Vec<Instruction> = self.read_code();
