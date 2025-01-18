@@ -43,6 +43,19 @@ impl<'a> Reader<'a> {
         return result.into();
     }
 
+    fn read_u32(&mut self) -> u32 {
+        let bytes: Vec<u8> = self.read_u8s(size_of::<u32>());
+        if self.endianness {
+            return bytes
+                .try_into()
+                .map(u32::from_le_bytes)
+                .expect("Failed to read u32: could not map bytes");
+        }
+        return bytes
+            .try_into()
+            .map(u32::from_be_bytes)
+            .expect("Failed to read u32: could not map bytes");
+    }
     fn read_u64(&mut self) -> u64 {
         let bytes: Vec<u8> = self.read_u8s(size_of::<u64>());
         if self.endianness {
@@ -96,6 +109,8 @@ impl<'a> Reader<'a> {
     fn read_sizet(&mut self) -> u64 {
         return if self.size_sizet == size_of::<u64>() as u8 {
             self.read_u64()
+        } else if self.size_sizet == size_of::<u32>() as u8 {
+            self.read_u32() as u64
         } else {
             panic!("Failed to read sizet: unhandled size {}", self.size_sizet);
         };
