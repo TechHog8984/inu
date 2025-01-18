@@ -371,7 +371,7 @@ impl OpCode {
             format!(
                 "{}r_{}({})",
                 if *c == 0 {
-                    String::from("top ... ??? = ")
+                    String::from("??? ... top = ")
                 } else if *c == 1 {
                     String::new()
                 } else {
@@ -379,7 +379,7 @@ impl OpCode {
                 },
                 a,
                 if *b == 0 {
-                    String::from("top ... ???")
+                    String::from("??? ... top")
                 } else if *b == 1 {
                     String::new()
                 } else {
@@ -391,7 +391,7 @@ impl OpCode {
                 "return r_{}({})",
                 a,
                 if *b == 0 {
-                    String::from("top ... ???")
+                    String::from("??? ... top")
                 } else if *b == 1 {
                     String::new()
                 } else {
@@ -402,7 +402,7 @@ impl OpCode {
             format!(
                 "return{}",
                 if *b == 0 {
-                    String::from(" top ... ???")
+                    String::from(" ??? ... top")
                 } else if *b == 1 {
                     String::new()
                 } else {
@@ -474,7 +474,7 @@ impl OpCode {
             format!(
                 "{} = vararg",
                 if *b == 0 {
-                    format!("r_{}, top ... ???", a)
+                    format!("r_{}, ??? ... top", a)
                 } else if *b == 1 {
                     format!("r_{}", a)
                 } else {
