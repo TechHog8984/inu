@@ -674,6 +674,8 @@ impl Bytecode {
                 }
                 if vararg {
                     arg_str += "...";
+                } else if count > 0 {
+                    arg_str.truncate(arg_str.len() - 2);
                 }
 
                 arg_str
