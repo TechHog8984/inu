@@ -15,14 +15,18 @@ fn main() {
     }
 
     let mut do_decompile: bool = false;
+    let mut do_psuedo_code: bool = false;
     let mut input_path: Option<&String> = None;
     for i in 1..argv.len() {
         let value: &String = &argv[i];
-        if value.starts_with("-") {
-            let option: &str = &value[1..value.len()];
+        if value.starts_with("--") {
+            let option: &str = &value[2..value.len()];
             match option {
                 "dec" => {
                     do_decompile = true;
+                }
+                "psuedo" => {
+                    do_psuedo_code = true;
                 }
                 _ => {
                     panic!("unexpected argument {} found", value);
@@ -49,13 +53,14 @@ fn main() {
         eprintln!("decompile is currently disabled");
         return;
     }
-    bytecode.print_disassembly();
+    bytecode.print_disassembly(do_psuedo_code);
 }
 fn display_help() {
     println!("inu - A disassembler for lua\n");
     println!("Usage: inu [options] file");
     println!();
     println!("options:");
-    println!("    -dec : decompile");
+    println!("    --dec : decompile");
+    println!("    --psuedo: omit disassembly");
     exit(0);
 }

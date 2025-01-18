@@ -648,21 +648,21 @@ pub fn build_bytecode(
 }
 
 impl Bytecode {
-    pub fn print_disassembly(&mut self) {
+    pub fn print_disassembly(&mut self, just_describes: bool) {
         let time_taken = self.time_taken;
         println!(
             "-- disassembled by inu in {}\n",
             format_time_taken!(time_taken)
         );
 
-        self.print_proto(self.main_proto.clone());
+        self.print_proto(self.main_proto.clone(), just_describes);
     }
 
     fn print_text(&self, text: String) {
         println!("{}{}", ("    ").repeat(self.indent.into()), text);
     }
 
-    fn print_proto(&mut self, proto: Proto) {
+    fn print_proto(&mut self, proto: Proto, just_describes: bool) {
         if !proto.is_main {
             self.print_text(format!("local function proto_{}({})", proto.id, {
                 let count = proto.param_count;
@@ -716,23 +716,27 @@ impl Bytecode {
                 let index: usize = bx as usize;
                 if !was_proto_printed_map[index] {
                     was_proto_printed_map[index] = true;
-                    self.print_proto(proto.protos[index].clone());
+                    self.print_proto(proto.protos[index].clone(), just_describes);
                 }
             }
-            self.print_text(format!(
-                "{:<width_index$}{:<width_strings$}  --  {}",
-                i,
-                code_op_strings[i],
-                code_op_describes[i],
-                width_index = max_index_width,
-                width_strings = max_op_strings_width,
-            ))
+            if just_describes {
+                self.print_text(code_op_describes[i].clone());
+            } else {
+                self.print_text(format!(
+                    "{:<width_index$}{:<width_strings$}  --  {}",
+                    i,
+                    code_op_strings[i],
+                    code_op_describes[i],
+                    width_index = max_index_width,
+                    width_strings = max_op_strings_width,
+                ))
+            }
         }
 
         for i in 0..proto.protos.len() {
             let proto: Proto = proto.protos[i].clone();
             if !was_proto_printed_map[i] {
-                self.print_proto(proto);
+                self.print_proto(proto, just_describes);
             }
         }
 
