@@ -709,11 +709,6 @@ impl Bytecode {
             .map(|string| string.len())
             .max()
             .unwrap_or(0);
-        let max_op_describes_width = code_op_describes
-            .iter()
-            .map(|string| string.len())
-            .max()
-            .unwrap_or(0);
 
         for i in 0..code_len {
             let inst: &Instruction = &proto.code[i];
@@ -725,13 +720,12 @@ impl Bytecode {
                 }
             }
             self.print_text(format!(
-                "{:<width_index$}{:<width_strings$}  --  {:<width_describes$}",
+                "{:<width_index$}{:<width_strings$}  --  {}",
                 i,
                 code_op_strings[i],
                 code_op_describes[i],
                 width_index = max_index_width,
                 width_strings = max_op_strings_width,
-                width_describes = max_op_describes_width
             ))
         }
 
