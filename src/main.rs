@@ -1,10 +1,8 @@
 use bytecode::Bytecode;
-use decompiler::{build_decompiler, Decompiler};
 use read::{build_reader, Reader};
 use std::{env, fs, process::exit};
 
 pub mod bytecode;
-pub mod decompiler;
 pub mod read;
 pub mod util;
 
@@ -48,10 +46,7 @@ fn main() {
     let mut bytecode: Bytecode = reader.read();
 
     if do_decompile {
-        let mut decompiler: Decompiler = build_decompiler(bytecode);
-
-        println!("{}", decompiler.decompile());
-
+        eprintln!("decompile is currently disabled");
         return;
     }
     bytecode.print_disassembly();
