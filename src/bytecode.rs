@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, str::from_utf8, time::Duration};
 
 use crate::util::util::format_time_taken;
 
@@ -17,7 +17,7 @@ pub enum Constant {
     Nil,
     Boolean(bool),
     Number(LuaNumber),
-    String(String),
+    String(Vec<u8>),
 }
 
 impl Constant {
@@ -26,31 +26,36 @@ impl Constant {
             Constant::Nil => "nil".to_string(),
             Constant::Boolean(bool) => bool.to_string(),
             Constant::Number(number) => number.to_string(),
-            Constant::String(s) => {
+            Constant::String(bytes) => {
                 // unparse string
                 let mut result: String = String::from('"');
-                let mut map: HashMap<char, char> = HashMap::new();
+                let mut map: HashMap<u8, char> = HashMap::new();
 
-                map.insert('\u{0007}', 'a');
-                map.insert('\u{0008}', 'b');
-                map.insert('\u{000C}', 'c');
-                map.insert('\n', 'n');
-                map.insert('\r', 'r');
-                map.insert('\t', 't');
-                map.insert('\u{000B}', 'v');
-                map.insert('\\', '\\');
-                map.insert('\'', '\'');
-                map.insert('"', '"');
-                map.insert('\0', '0');
+                map.insert('\u{0007}' as u8, 'a');
+                map.insert('\u{0008}' as u8, 'b');
+                map.insert('\u{000C}' as u8, 'c');
+                map.insert('\n' as u8, 'n');
+                map.insert('\r' as u8, 'r');
+                map.insert('\t' as u8, 't');
+                map.insert('\u{000B}' as u8, 'v');
+                map.insert('\\' as u8, '\\');
+                map.insert('\'' as u8, '\'');
+                map.insert('"' as u8, '"');
+                map.insert('\0' as u8, '0');
                 // map.insert('\1', '1');
 
-                for c in s.chars() {
-                    if let Some(replacement) = map.get(&c) {
+                let mut i = 0;
+                while i < bytes.len() {
+                    let b = bytes[i];
+                    if let Some(replacement) = map.get(&b) {
                         result.push('\\');
                         result.push(replacement.clone());
+                    } else if let Ok(c) = from_utf8(&bytes[i..i + 1]) {
+                        result.push_str(c);
                     } else {
-                        result.push(c);
+                        result.push_str(&format!("\\x{:02x}", b));
                     }
+                    i += 1;
                 }
                 result.push('"');
 
@@ -293,14 +298,14 @@ impl OpCode {
             format!(
                 "r_{} = {}",
                 a,
-                GET_RAW_CONSTANT_AND_EXPECT_STRING!(constants, *bx as usize, "GETGLOBAL")
+                String::from_utf8(GET_RAW_CONSTANT_AND_EXPECT_STRING!(constants, *bx as usize, "GETGLOBAL")).unwrap_or("[INVALID STRING]".to_string())
             )
         } else if let OpCode::OpGetTable(OpMode::ABC(a, b, c)) = self {
             format!("r_{} = r_{}[{}]", a, b, FORMAT_CONSTANT_RK!(constants, *c))
         } else if let OpCode::OpSetGlobal(OpMode::ABX(a, bx)) = self {
             format!(
                 "{} = r_{}",
-                GET_RAW_CONSTANT_AND_EXPECT_STRING!(constants, *bx as usize, "SETGLOBAL"),
+                String::from_utf8(GET_RAW_CONSTANT_AND_EXPECT_STRING!(constants, *bx as usize, "SETGLOBAL")).unwrap_or("[INVALID STRING]".to_string()),
                 a
             )
         } else if let OpCode::OpSetUpval(OpMode::ABC(a, b, _c)) = self {
@@ -575,7 +580,8 @@ pub fn build_instruction(
         37 => OpCode::OpVararg(OpMode::ABC(a, b, c)),
 
         op => {
-            panic!("Failed to get opcode: {}", op);
+            // panic!("Failed to get opcode: {}", op);
+            OpCode::OpUnknown(op)
         }
     };
     Instruction { /* raw, */ op }
@@ -586,7 +592,7 @@ pub struct Proto {
     pub is_main: bool,
     pub id: LuaInt,
 
-    pub source: Option<String>,
+    pub source: Vec<u8>,
     pub line_defined: LuaInt,
     pub last_line_defined: LuaInt,
     pub upvalue_count: u8,

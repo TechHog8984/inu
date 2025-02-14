@@ -128,23 +128,18 @@ impl<'a> Reader<'a> {
         };
     }
 
-    fn read_string(&mut self) -> Option<String> {
+    fn read_string(&mut self) -> Vec<u8> {
         let size = self.read_sizet();
         if size == 0 {
-            return None;
+            return vec![];
         }
 
-        let mut value: String = String::from_utf8(self.read_u8s(size as usize))
-            .expect("Failed to read string: could not convert bytes to string");
+        let mut bytes = self.read_u8s(size as usize);
+        assert_eq!(bytes.last(), Some(&0), "Expected last character in string to be a 0");
 
-        assert_eq!(
-            value.chars().last().unwrap_or(1 as char),
-            0 as char,
-            "Expected last character in read string to be a 0"
-        );
-        value.remove(value.len() - 1);
+        bytes.remove(bytes.len() - 1);
 
-        return Some(value);
+        bytes
     }
 
     // return type should be the biggest of all possible types
@@ -228,7 +223,7 @@ impl<'a> Reader<'a> {
     }
 
     fn read_proto(&mut self, id: LuaInt, is_main: bool) -> Proto {
-        let source: Option<String> = self.read_string();
+        let source: Vec<u8> = self.read_string();
         let line_defined: LuaInt = self.read_int();
         let last_line_defined: LuaInt = self.read_int();
         let upvalues_count: u8 = self.read_u8();
@@ -305,7 +300,7 @@ impl<'a> Reader<'a> {
                 0 => Constant::Nil,
                 1 => Constant::Boolean(self.read_u8() == 1),
                 3 => Constant::Number(self.read_number()),
-                4 => Constant::String(self.read_string().unwrap_or("".to_string())),
+                4 => Constant::String(self.read_string()),
                 _ => {
                     panic!("Failed to read constant: invalid type {}", constant_type);
                 }
