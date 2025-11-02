@@ -298,14 +298,24 @@ impl OpCode {
             format!(
                 "r_{} = {}",
                 a,
-                String::from_utf8(GET_RAW_CONSTANT_AND_EXPECT_STRING!(constants, *bx as usize, "GETGLOBAL")).unwrap_or("[INVALID STRING]".to_string())
+                String::from_utf8(GET_RAW_CONSTANT_AND_EXPECT_STRING!(
+                    constants,
+                    *bx as usize,
+                    "GETGLOBAL"
+                ))
+                .unwrap_or("[INVALID STRING]".to_string())
             )
         } else if let OpCode::OpGetTable(OpMode::ABC(a, b, c)) = self {
             format!("r_{} = r_{}[{}]", a, b, FORMAT_CONSTANT_RK!(constants, *c))
         } else if let OpCode::OpSetGlobal(OpMode::ABX(a, bx)) = self {
             format!(
                 "{} = r_{}",
-                String::from_utf8(GET_RAW_CONSTANT_AND_EXPECT_STRING!(constants, *bx as usize, "SETGLOBAL")).unwrap_or("[INVALID STRING]".to_string()),
+                String::from_utf8(GET_RAW_CONSTANT_AND_EXPECT_STRING!(
+                    constants,
+                    *bx as usize,
+                    "SETGLOBAL"
+                ))
+                .unwrap_or("[INVALID STRING]".to_string()),
                 a
             )
         } else if let OpCode::OpSetUpval(OpMode::ABC(a, b, _c)) = self {
@@ -667,6 +677,9 @@ impl Bytecode {
     fn print_text(&self, text: String) {
         println!("{}{}", ("    ").repeat(self.indent.into()), text);
     }
+    fn print_text_str(&self, text: &str) {
+        self.print_text(text.to_string());
+    }
 
     fn print_proto(&mut self, proto: Proto, just_describes: bool) {
         if !proto.is_main {
@@ -688,6 +701,21 @@ impl Bytecode {
             }));
             self.indent += 1;
         }
+
+        self.print_text_str("--[[ constants:");
+        self.indent += 1;
+        for i in 0..proto.constants.len() {
+            let kst: &Constant = &proto.constants[i];
+
+            let mut i_str = i.to_string();
+            i_str.push_str(" - ");
+
+            let mut str = kst.format();
+            str.insert_str(0, i_str.as_str());
+            self.print_text(str);
+        }
+        self.indent -= 1;
+        self.print_text_str("]]");
 
         let mut was_proto_printed_map: Vec<bool> = vec![false; proto.code.len()];
 
@@ -748,7 +776,7 @@ impl Bytecode {
 
         if !proto.is_main {
             self.indent -= 1;
-            self.print_text("end".to_string())
+            self.print_text_str("end")
         }
     }
 }
