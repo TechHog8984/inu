@@ -226,63 +226,83 @@ macro_rules! GET_RAW_CONSTANT_AND_EXPECT_STRING {
         }
     };
 }
+
+macro_rules! REG_FMT {
+    ( $reg:expr, $proto:expr ) => {
+        match $reg < $proto.param_count as i32 {
+            true => format!("arg_{}", $reg),
+            false => format!("r_{}", $reg),
+        }
+    };
+}
+
 macro_rules! FORMAT_CONSTANT_RK {
-    ( $constants:expr, $value:expr ) => {
+    ( $constants:expr, $value:expr, $proto:expr ) => {
         if IS_RK!($value) {
             $constants[INDEXK!($value) as usize].format()
         } else {
-            format!("r_{}", $value)
+            REG_FMT!($value, $proto)
         }
     };
 }
 macro_rules! FORMAT_BINARY {
-    ( $op:expr, $constants:expr, $a:expr, $b:expr, $c:expr ) => {
+    ( $op:expr, $constants:expr, $proto:expr, $a:expr, $b:expr, $c:expr ) => {
         format!(
-            "r_{} = {} {} {}",
-            $a,
-            FORMAT_CONSTANT_RK!($constants, $b),
+            "{} = {} {} {}",
+            REG_FMT!($a, $proto),
+            FORMAT_CONSTANT_RK!($constants, $b, $proto),
             $op,
-            FORMAT_CONSTANT_RK!($constants, $c)
+            FORMAT_CONSTANT_RK!($constants, $c, $proto)
         )
     };
 }
 macro_rules! FORMAT_UNARY {
-    ( $op:expr, $a:expr, $b:expr ) => {
-        format!("r_{} = {}r_{}", $a, $op, $b)
+    ( $op:expr, $proto:expr, $a:expr, $b:expr ) => {
+        format!("{} = {}{}", REG_FMT!($a, $proto), $op, REG_FMT!($b, $proto))
     };
 }
 
 macro_rules! FORMAT_CONDITION {
-    ( $yes:expr, $no:expr, $constants:expr, $a:expr, $b:expr, $c:expr, $pc:expr ) => {
+    ( $yes:expr, $no:expr, $constants:expr, $proto:expr, $a:expr, $b:expr, $c:expr, $pc:expr ) => {
         format!(
             "if {} {} {} then goto {}",
-            FORMAT_CONSTANT_RK!($constants, $b),
+            FORMAT_CONSTANT_RK!($constants, $b, $proto),
             if $a == 1 { $no } else { $yes },
-            FORMAT_CONSTANT_RK!($constants, $c),
+            FORMAT_CONSTANT_RK!($constants, $c, $proto),
             $pc + 2
         )
     };
 }
 
 macro_rules! SIMPLE_REG_LIST {
-    ( $from:expr, $to:expr ) => {
+    ( $from:expr, $to:expr, $proto:expr ) => {
         match $from == $to {
-            true => format!("r_{}", $from),
+            true => REG_FMT!($from, $proto),
             false => format!("r_{} ... r_{}", $from, $to),
         }
     };
 }
 
 impl OpCode {
-    fn describe(&self, constants: &Vec<Constant>, protos: &Vec<Proto>, pc: isize) -> String {
+    fn describe(
+        &self,
+        constants: &Vec<Constant>,
+        proto: &Proto,
+        protos: &Vec<Proto>,
+        pc: isize,
+    ) -> String {
         return if let OpCode::OpMove(OpMode::ABC(a, b, _c)) = self {
-            format!("r_{} = r_{}", a, b)
+            format!("{} = {}", REG_FMT!(*a, proto), REG_FMT!(*b, proto))
         } else if let OpCode::OpLoadK(OpMode::ABX(a, bx)) = self {
-            format!("r_{} = {}", a, constants[*bx as usize].format())
+            format!(
+                "{} = {}",
+                REG_FMT!(*a, proto),
+                constants[*bx as usize].format()
+            )
         } else if let OpCode::OpLoadBool(OpMode::ABC(a, b, c)) = self {
             format!(
-                "r_{} = {}{}",
-                a,
+                "{} = {}{}",
+                REG_FMT!(*a, proto),
                 *b == 1,
                 if *c == 1 {
                     format!("; goto {}", pc + 2)
@@ -291,13 +311,13 @@ impl OpCode {
                 }
             )
         } else if let OpCode::OpLoadNil(OpMode::ABC(a, b, _c)) = self {
-            format!("{} = nil", SIMPLE_REG_LIST!(*a, *b))
+            format!("{} = nil", SIMPLE_REG_LIST!(*a, *b, proto))
         } else if let OpCode::OpGetUpval(OpMode::ABC(a, b, _c)) = self {
-            format!("r_{} = upvalue_{}", a, b)
+            format!("{} = upvalue_{}", REG_FMT!(*a, proto), b)
         } else if let OpCode::OpGetGlobal(OpMode::ABX(a, bx)) = self {
             format!(
-                "r_{} = {}",
-                a,
+                "{} = {}",
+                REG_FMT!(*a, proto),
                 String::from_utf8(GET_RAW_CONSTANT_AND_EXPECT_STRING!(
                     constants,
                     *bx as usize,
@@ -306,158 +326,173 @@ impl OpCode {
                 .unwrap_or("[INVALID STRING]".to_string())
             )
         } else if let OpCode::OpGetTable(OpMode::ABC(a, b, c)) = self {
-            format!("r_{} = r_{}[{}]", a, b, FORMAT_CONSTANT_RK!(constants, *c))
+            format!(
+                "{} = {}[{}]",
+                REG_FMT!(*a, proto),
+                REG_FMT!(*b, proto),
+                FORMAT_CONSTANT_RK!(constants, *c, proto)
+            )
         } else if let OpCode::OpSetGlobal(OpMode::ABX(a, bx)) = self {
             format!(
-                "{} = r_{}",
+                "{} = {}",
                 String::from_utf8(GET_RAW_CONSTANT_AND_EXPECT_STRING!(
                     constants,
                     *bx as usize,
                     "SETGLOBAL"
                 ))
                 .unwrap_or("[INVALID STRING]".to_string()),
-                a
+                REG_FMT!(*a, proto)
             )
         } else if let OpCode::OpSetUpval(OpMode::ABC(a, b, _c)) = self {
-            format!("upvalue_{} = r_{}", b, a)
+            format!("upvalue_{} = {}", b, REG_FMT!(*a, proto))
         } else if let OpCode::OpSetTable(OpMode::ABC(a, b, c)) = self {
             format!(
-                "r_{}[{}] = {}",
-                a,
-                FORMAT_CONSTANT_RK!(constants, b),
-                FORMAT_CONSTANT_RK!(constants, c)
+                "{}[{}] = {}",
+                REG_FMT!(*a, proto),
+                FORMAT_CONSTANT_RK!(constants, *b, proto),
+                FORMAT_CONSTANT_RK!(constants, *c, proto)
             )
         } else if let OpCode::OpNewTable(OpMode::ABC(a, b, c)) = self {
-            format!("r_{} = {{}} -- {} list, {} record", a, b, c)
+            format!("{} = {{}} -- {} list, {} record", REG_FMT!(*a, proto), b, c)
         } else if let OpCode::OpSelf(OpMode::ABC(a, b, c)) = self {
             format!(
-                "r_{} = r_{}; r_{} = r_{}[{}]",
-                a + 1,
-                b,
-                a,
-                b,
-                FORMAT_CONSTANT_RK!(constants, c)
+                "{} = {}; {} = {}[{}]",
+                REG_FMT!(a + 1, proto),
+                REG_FMT!(*b, proto),
+                REG_FMT!(*a, proto),
+                REG_FMT!(*b, proto),
+                FORMAT_CONSTANT_RK!(constants, *c, proto)
             )
         } else if let OpCode::OpAdd(OpMode::ABC(a, b, c)) = self {
-            FORMAT_BINARY!('+', constants, *a, *b, *c)
+            FORMAT_BINARY!('+', constants, proto, *a, *b, *c)
         } else if let OpCode::OpSub(OpMode::ABC(a, b, c)) = self {
-            FORMAT_BINARY!('-', constants, *a, *b, *c)
+            FORMAT_BINARY!('-', constants, proto, *a, *b, *c)
         } else if let OpCode::OpMul(OpMode::ABC(a, b, c)) = self {
-            FORMAT_BINARY!('*', constants, *a, *b, *c)
+            FORMAT_BINARY!('*', constants, proto, *a, *b, *c)
         } else if let OpCode::OpDiv(OpMode::ABC(a, b, c)) = self {
-            FORMAT_BINARY!('/', constants, *a, *b, *c)
+            FORMAT_BINARY!('/', constants, proto, *a, *b, *c)
         } else if let OpCode::OpMod(OpMode::ABC(a, b, c)) = self {
-            FORMAT_BINARY!('%', constants, *a, *b, *c)
+            FORMAT_BINARY!('%', constants, proto, *a, *b, *c)
         } else if let OpCode::OpPow(OpMode::ABC(a, b, c)) = self {
-            FORMAT_BINARY!('^', constants, *a, *b, *c)
+            FORMAT_BINARY!('^', constants, proto, *a, *b, *c)
         } else if let OpCode::OpUnm(OpMode::ABC(a, b, _c)) = self {
-            FORMAT_UNARY!('-', *a, *b)
+            FORMAT_UNARY!('-', proto, *a, *b)
         } else if let OpCode::OpNot(OpMode::ABC(a, b, _c)) = self {
-            FORMAT_UNARY!("not ", *a, *b)
+            FORMAT_UNARY!("not ", proto, *a, *b)
         } else if let OpCode::OpLen(OpMode::ABC(a, b, _c)) = self {
-            FORMAT_UNARY!('#', *a, *b)
+            FORMAT_UNARY!('#', proto, *a, *b)
         } else if let OpCode::OpConcat(OpMode::ABC(a, b, c)) = self {
-            format!("r_{} = r_{} .. ... .. r_{}", a, b, c)
+            format!(
+                "{} = {} .. ... .. {}",
+                REG_FMT!(*a, proto),
+                REG_FMT!(*b, proto),
+                REG_FMT!(*c, proto)
+            )
         } else if let OpCode::OpJmp(OpMode::ASBX(_a, sbx)) = self {
             format!("goto {}", pc + *sbx as isize + 1)
         } else if let OpCode::OpEq(OpMode::ABC(a, b, c)) = self {
-            FORMAT_CONDITION!("==", "~=", constants, *a, *b, *c, pc)
+            FORMAT_CONDITION!("==", "~=", constants, proto, *a, *b, *c, pc)
         } else if let OpCode::OpLt(OpMode::ABC(a, b, c)) = self {
-            FORMAT_CONDITION!("<", ">=", constants, *a, *b, *c, pc)
+            FORMAT_CONDITION!("<", ">=", constants, proto, *a, *b, *c, pc)
         } else if let OpCode::OpLe(OpMode::ABC(a, b, c)) = self {
-            FORMAT_CONDITION!("<=", ">", constants, *a, *b, *c, pc)
+            FORMAT_CONDITION!("<=", ">", constants, proto, *a, *b, *c, pc)
         } else if let OpCode::OpTest(OpMode::ABC(a, _b, c)) = self {
             format!(
-                "if {}r_{} then goto {}",
+                "if {}{} then goto {}",
                 if *c == 0 { "" } else { "not " },
-                a,
+                REG_FMT!(*a, proto),
                 pc + 2
             )
         } else if let OpCode::OpTestSet(OpMode::ABC(a, b, c)) = self {
             format!(
-                "if {}r_{} then goto {} else r_{} = r_{}",
+                "if {}{} then goto {} else {} = {}",
                 if *c == 0 { "" } else { "not " },
                 b,
-                pc + 2,
-                a,
-                b
+                REG_FMT!(pc as i32 + 2, proto),
+                REG_FMT!(*a, proto),
+                REG_FMT!(*b, proto)
             )
         } else if let OpCode::OpCall(OpMode::ABC(a, b, c)) = self {
             format!(
-                "{}r_{}({})",
+                "{}{}({})",
                 if *c == 0 {
-                    String::from("??? ... top = ")
+                    String::from("top ... ??? = ")
                 } else if *c == 1 {
                     String::new()
                 } else {
-                    format!("{} = ", SIMPLE_REG_LIST!(*a, *a + *c - 2))
+                    format!("{} = ", SIMPLE_REG_LIST!(*a, *a + *c - 2, proto))
                 },
-                a,
+                REG_FMT!(*a, proto),
                 if *b == 0 {
-                    String::from("??? ... top")
+                    String::from("top ... ???")
                 } else if *b == 1 {
                     String::new()
                 } else {
-                    SIMPLE_REG_LIST!(*a + 1, *a + *b - 1)
+                    SIMPLE_REG_LIST!(*a + 1, *a + *b - 1, proto)
                 }
             )
         } else if let OpCode::OpTailCall(OpMode::ABC(a, b, _c)) = self {
             format!(
-                "return r_{}({})",
-                a,
+                "return {}({})",
+                REG_FMT!(*a, proto),
                 if *b == 0 {
-                    String::from("??? ... top")
+                    String::from("top ... ???")
                 } else if *b == 1 {
                     String::new()
                 } else {
-                    SIMPLE_REG_LIST!(*a + 1, *a + *b - 1)
+                    SIMPLE_REG_LIST!(*a + 1, *a + *b - 1, proto)
                 }
             )
         } else if let OpCode::OpReturn(OpMode::ABC(a, b, _c)) = self {
             format!(
                 "return{}",
                 if *b == 0 {
-                    String::from(" ??? ... top")
+                    String::from(" top ... ???")
                 } else if *b == 1 {
                     String::new()
                 } else {
-                    format!(" {}", SIMPLE_REG_LIST!(*a, *a + *b - 2))
+                    format!(" {}", SIMPLE_REG_LIST!(*a, *a + *b - 2, proto))
                 }
             )
         } else if let OpCode::OpForLoop(OpMode::ASBX(a, sbx)) = self {
             format!(
-                "r_{} += r_{}; if r_{} <?= r_{} then {{ goto {}; r_{} = r_{} }}",
-                a,
-                *a + 2,
-                a,
-                *a + 1,
+                "{} += {}; if {} <?= {} then {{ goto {}; {} = {} }}",
+                REG_FMT!(*a, proto),
+                REG_FMT!(*a + 2, proto),
+                REG_FMT!(*a, proto),
+                REG_FMT!(*a + 1, proto),
                 pc + *sbx as isize + 2,
-                *a + 3,
-                a
+                REG_FMT!(*a + 3, proto),
+                REG_FMT!(*a, proto)
             )
         } else if let OpCode::OpForPrep(OpMode::ASBX(a, sbx)) = self {
-            format!("r_{} -= r_{}; goto {}", a, *a + 2, pc + *sbx as isize + 2)
+            format!(
+                "{} -= {}; goto {}",
+                REG_FMT!(*a, proto),
+                REG_FMT!(*a + 2, proto),
+                pc + *sbx as isize + 2
+            )
         } else if let OpCode::OpTForLoop(OpMode::ABC(a, _b, c)) = self {
             format!(
-                "{} = r_{}(r_{}, r_{}); if r_{} ~= nil {{r_{} = r_{}}} else goto {}",
-                SIMPLE_REG_LIST!(*a + 3, *a + 2 + *c),
+                "{} = {}({}, {}); if {} ~= nil {{{} = {}}} else goto {}",
+                SIMPLE_REG_LIST!(*a + 3, *a + 2 + *c, proto),
                 *a,
-                *a + 1,
-                *a + 2,
-                *a + 3,
-                *a + 2,
-                *a + 3,
+                REG_FMT!(*a + 1, proto),
+                REG_FMT!(*a + 2, proto),
+                REG_FMT!(*a + 3, proto),
+                REG_FMT!(*a + 2, proto),
+                REG_FMT!(*a + 3, proto),
                 pc + 2
             )
         } else if let OpCode::OpSetList(OpMode::ABC(a, b, c)) = self {
             let offset = (*c - 1) * 50;
             format!(
-                "r_{}[{} ... {}] = r_{} ... r_{}",
-                a,
+                "{}[{} ... {}] = {} ... {}",
+                REG_FMT!(*a, proto),
                 offset + 1,
                 offset + *b,
-                *a + 1,
-                *a + *b
+                REG_FMT!(*a + 1, proto),
+                REG_FMT!(*a + *b, proto)
             )
         } else if let OpCode::OpClose(OpMode::ABX(a, _bx)) = self {
             format!("close all variables in the stack up to r_{}", a)
@@ -465,8 +500,8 @@ impl OpCode {
             let upvalue_count: u8 = protos[*bx as usize].upvalue_count;
             let multiple: bool = upvalue_count > 1;
             format!(
-                "r_{} = proto_{}{}",
-                a,
+                "{} = proto_{}{}",
+                REG_FMT!(*a, proto),
                 bx,
                 if upvalue_count > 0 {
                     format!(
@@ -489,11 +524,11 @@ impl OpCode {
             format!(
                 "{} = vararg",
                 if *b == 0 {
-                    format!("r_{}, ??? ... top", a)
+                    format!("{}, top ... ???", REG_FMT!(*a, proto))
                 } else if *b == 1 {
-                    format!("r_{}", a)
+                    format!("{}", REG_FMT!(*a, proto))
                 } else {
-                    format!("{}", SIMPLE_REG_LIST!(*a, *a + *b - 2))
+                    format!("{}", SIMPLE_REG_LIST!(*a, *a + *b - 2, proto))
                 }
             )
         } else {
@@ -727,10 +762,12 @@ impl Bytecode {
             let inst: &Instruction = &proto.code[i];
 
             code_op_strings.push(format!("{:?}", inst.op));
-            code_op_describes.push(
-                inst.op
-                    .describe(&proto.constants, &proto.protos, i as isize),
-            );
+            code_op_describes.push(inst.op.describe(
+                &proto.constants,
+                &proto,
+                &proto.protos,
+                i as isize,
+            ));
         }
 
         let max_index_width = if code_len == 0 {
